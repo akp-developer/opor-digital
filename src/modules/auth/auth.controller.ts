@@ -1,40 +1,118 @@
-// src/modules/auth/auth.controller.ts
-
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import { validationResult } from "express-validator";
 import { UserModel } from "../../models/user.model";
 import { TenantModel } from "../../models/tenant.model";
+import mongoose from "mongoose";
 
-// Define interface for tokens
 interface ITokens {
   accessToken: string;
   refreshToken: string;
 }
 
-// AuthController class with proper export
 export class AuthController {
-  static async login(req: Request, res: Response) {
+  static async register(req: Request, res: Response) {
     try {
-      const { username, password, tenantCode } = req.body;
-
-      if (!username || !password || !tenantCode) {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
         return res.status(400).json({
           success: false,
-          message: "Please provide username, password and tenant code",
+          errors: errors.array(),
         });
       }
 
-      const tenant = await TenantModel.findOne({ code: tenantCode });
+      const {
+        username,
+        email,
+        password,
+        firstName,
+        lastName,
+        role,
+        tenantCode,
+      } = req.body;
+
+      // Find tenant
+      const tenant = await TenantModel.findOne({
+        code: tenantCode,
+        status: "active",
+      });
+
       if (!tenant) {
         return res.status(404).json({
           success: false,
-          message: "Tenant not found",
+          message: "Invalid or inactive tenant",
+        });
+      }
+
+      // Check if user exists
+      const existingUser = await UserModel.findOne({
+        $or: [{ email }, { username }],
+        tenantId: tenant._id,
+      });
+
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: "User already exists",
+        });
+      }
+
+      // Create user
+      const user = new UserModel({
+        username,
+        email,
+        password,
+        firstName,
+        lastName,
+        role: role || "user",
+        tenantId: tenant._id,
+        status: "active",
+        tokenVersion: 0,
+      });
+
+      await user.save();
+
+      // Generate tokens
+      const tokens = await AuthController.generateTokens(user);
+
+      res.status(201).json({
+        success: true,
+        token: tokens.accessToken,
+        user: {
+          id: user._id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+        },
+      });
+    } catch (error) {
+      console.error("Register error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Error in registration process",
+      });
+    }
+  }
+
+  static async login(req: Request, res: Response) {
+    try {
+      const { email, password, tenantCode } = req.body;
+
+      const tenant = await TenantModel.findOne({
+        code: tenantCode,
+        status: "active",
+      });
+
+      if (!tenant) {
+        return res.status(404).json({
+          success: false,
+          message: "Invalid or inactive tenant",
         });
       }
 
       const user = await UserModel.findOne({
+        email,
         tenantId: tenant._id,
-        username: username.toLowerCase(),
         status: "active",
       });
 
@@ -53,21 +131,7 @@ export class AuthController {
         });
       }
 
-      // Update last login and increment token version
-      user.lastLogin = new Date();
-      user.tokenVersion += 1;
-      await user.save();
-
-      // Generate tokens
       const tokens = await AuthController.generateTokens(user);
-
-      // Set refresh token in cookie
-      res.cookie("refreshToken", tokens.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      });
 
       res.json({
         success: true,
@@ -76,10 +140,7 @@ export class AuthController {
           id: user._id,
           username: user.username,
           email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
           role: user.role,
-          tenantId: user.tenantId,
         },
       });
     } catch (error) {
@@ -93,7 +154,8 @@ export class AuthController {
 
   static async getMe(req: Request & { user?: any }, res: Response) {
     try {
-      const user = await UserModel.findById(req.user?.id);
+      const user = await UserModel.findById(req.user?.id).select("-password");
+
       if (!user) {
         return res.status(404).json({
           success: false,
@@ -107,10 +169,7 @@ export class AuthController {
           id: user._id,
           username: user.username,
           email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
           role: user.role,
-          tenantId: user.tenantId,
         },
       });
     } catch (error) {
@@ -124,39 +183,30 @@ export class AuthController {
 
   static async refresh(req: Request, res: Response) {
     try {
-      const refreshToken = req.cookies?.refreshToken;
-      if (!refreshToken) {
+      const token = req.body.refreshToken || req.cookies?.refreshToken;
+
+      if (!token) {
         return res.status(401).json({
           success: false,
-          message: "Refresh token not found",
+          message: "No refresh token",
         });
       }
 
-      // Verify refresh token
       const decoded = jwt.verify(
-        refreshToken,
+        token,
         process.env.JWT_REFRESH_SECRET || "your-refresh-jwt-secret"
-      ) as { id: string; tokenVersion: number };
+      ) as { id: string };
 
-      // Get user
       const user = await UserModel.findById(decoded.id);
-      if (!user || user.tokenVersion !== decoded.tokenVersion) {
+
+      if (!user) {
         return res.status(401).json({
           success: false,
           message: "Invalid refresh token",
         });
       }
 
-      // Generate new tokens
       const tokens = await AuthController.generateTokens(user);
-
-      // Set new refresh token
-      res.cookie("refreshToken", tokens.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      });
 
       res.json({
         success: true,
@@ -165,14 +215,11 @@ export class AuthController {
           id: user._id,
           username: user.username,
           email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
           role: user.role,
-          tenantId: user.tenantId,
         },
       });
     } catch (error) {
-      console.error("Refresh token error:", error);
+      console.error("Refresh error:", error);
       res.status(401).json({
         success: false,
         message: "Invalid refresh token",
@@ -195,7 +242,6 @@ export class AuthController {
     const refreshToken = jwt.sign(
       {
         id: user._id,
-        tokenVersion: user.tokenVersion,
       },
       process.env.JWT_REFRESH_SECRET || "your-refresh-jwt-secret",
       { expiresIn: "7d" }

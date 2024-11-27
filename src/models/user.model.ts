@@ -1,4 +1,3 @@
-// src/models/user.model.ts
 import mongoose, { Schema, Document } from "mongoose";
 import bcrypt from "bcryptjs";
 
@@ -12,9 +11,11 @@ export interface IUser extends Document {
   role: string;
   status: "active" | "inactive" | "suspended";
   lastLogin?: Date;
-  tokenVersion: number; // เพิ่มสำหรับ refresh token
-  refreshToken?: string; // เพิ่มสำหรับเก็บ refresh token
+  tokenVersion: number;
+  refreshToken?: string;
   comparePassword(candidatePassword: string): Promise<boolean>;
+  incrementTokenVersion(): Promise<void>;
+  updateRefreshToken(token: string): Promise<void>;
 }
 
 const UserSchema = new Schema<IUser>(
@@ -65,12 +66,10 @@ const UserSchema = new Schema<IUser>(
     },
     lastLogin: Date,
     tokenVersion: {
-      // เพิ่มฟิลด์ tokenVersion
       type: Number,
       default: 0,
     },
     refreshToken: {
-      // เพิ่มฟิลด์ refreshToken
       type: String,
       default: null,
     },
@@ -94,20 +93,18 @@ UserSchema.pre("save", async function (next) {
   }
 });
 
-// Compare password method
+// Instance methods
 UserSchema.methods.comparePassword = async function (
   candidatePassword: string
 ): Promise<boolean> {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-// Method to increment token version (invalidate all existing refresh tokens)
 UserSchema.methods.incrementTokenVersion = async function (): Promise<void> {
   this.tokenVersion += 1;
   await this.save();
 };
 
-// Method to update refresh token
 UserSchema.methods.updateRefreshToken = async function (
   token: string
 ): Promise<void> {
@@ -118,6 +115,6 @@ UserSchema.methods.updateRefreshToken = async function (
 // Indexes
 UserSchema.index({ tenantId: 1, username: 1 }, { unique: true });
 UserSchema.index({ tenantId: 1, email: 1 }, { unique: true });
-UserSchema.index({ refreshToken: 1 }, { sparse: true }); // เพิ่ม index สำหรับ refreshToken
+UserSchema.index({ refreshToken: 1 }, { sparse: true });
 
 export const UserModel = mongoose.model<IUser>("User", UserSchema);

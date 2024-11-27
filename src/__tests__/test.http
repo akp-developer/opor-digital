@@ -1,0 +1,37 @@
+@baseUrl = http://localhost:5000/api
+@contentType = application/json
+
+### Test health endpoint first
+GET {{baseUrl}}/health
+Content-Type: {{contentType}}
+
+### Register new user
+# @name register
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+    "username": "testadmin",
+    "email": "admin@test.com",
+    "password": "Test12345!",
+    "firstName": "Test",
+    "lastName": "Admin",
+    "role": "admin",
+    "tenantCode": "demo001"
+}
+
+### Login with the registered user
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+    "email": "admin@test.com",
+    "password": "Test12345!",
+    "tenantCode": "demo001"
+}
+
+### Get current user using the token from login
+GET {{baseUrl}}/auth/me
+Content-Type: {{contentType}}
+Authorization: Bearer {{login.response.body.token}}
