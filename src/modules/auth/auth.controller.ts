@@ -151,6 +151,7 @@ export class AuthController {
       });
     }
   }
+  
 
   static async getMe(req: Request & { user?: any }, res: Response) {
     try {
@@ -236,7 +237,7 @@ export class AuthController {
         tenantId: user.tenantId,
       },
       process.env.JWT_SECRET || "your-jwt-secret",
-      { expiresIn: "15m" }
+      { expiresIn: "8h" }  // เปลี่ยนเป็น 8 ชั่วโมง
     );
 
     const refreshToken = jwt.sign(
@@ -244,9 +245,9 @@ export class AuthController {
         id: user._id,
       },
       process.env.JWT_REFRESH_SECRET || "your-refresh-jwt-secret",
-      { expiresIn: "7d" }
+      { expiresIn: "7d" }  // refresh token อายุ 7 วัน
     );
 
     return { accessToken, refreshToken };
-  }
+}
 }

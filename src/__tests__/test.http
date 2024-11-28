@@ -1,29 +1,11 @@
 @baseUrl = http://localhost:5000/api
-@contentType = application/json
+@token = empty_token
 
-### Test health endpoint first
-GET {{baseUrl}}/health
-Content-Type: {{contentType}}
+#@baseUrl = http://localhost:5000/api
 
-### Register new user
-# @name register
-POST {{baseUrl}}/auth/register
-Content-Type: {{contentType}}
-
-{
-    "username": "testadmin",
-    "email": "admin@test.com",
-    "password": "Test12345!",
-    "firstName": "Test",
-    "lastName": "Admin",
-    "role": "admin",
-    "tenantCode": "demo001"
-}
-
-### Login with the registered user
-# @name login
-POST {{baseUrl}}/auth/login
-Content-Type: {{contentType}}
+### Login
+POST http://localhost:5000/api/auth/login
+Content-Type: application/json
 
 {
     "email": "admin@test.com",
@@ -31,7 +13,21 @@ Content-Type: {{contentType}}
     "tenantCode": "demo001"
 }
 
-### Get current user using the token from login
-GET {{baseUrl}}/auth/me
-Content-Type: {{contentType}}
-Authorization: Bearer {{login.response.body.token}}
+### Update user status
+PATCH {{baseUrl}}/users/67486e71ef7c986d25327d7c/status
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3NDg0NTdhZWY3Yzk4NmQyNTMyN2NlMyIsInVzZXJuYW1lIjoidGVzdGFkbWluIiwicm9sZSI6ImFkbWluIiwidGVuYW50SWQiOiI2NzQ3ZWUzYzk2NzNlZDUxZGMxN2UyOWUiLCJpYXQiOjE3MzI4MDEzNDAsImV4cCI6MTczMjgzMDE0MH0.iZwoknJcWCVGVtBHvcmMvgTaGBgrV5e9t568-DXLtwE
+Content-Type: application/json
+
+{
+    "status": "inactive"
+}
+
+### Update password
+PUT {{baseUrl}}/users/67486e71ef7c986d25327d7c/password
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3NDg0NTdhZWY3Yzk4NmQyNTMyN2NlMyIsInVzZXJuYW1lIjoidGVzdGFkbWluIiwicm9sZSI6ImFkbWluIiwidGVuYW50SWQiOiI2NzQ3ZWUzYzk2NzNlZDUxZGMxN2UyOWUiLCJpYXQiOjE3MzI4MDEzNDAsImV4cCI6MTczMjgzMDE0MH0.iZwoknJcWCVGVtBHvcmMvgTaGBgrV5e9t568-DXLtwE
+Content-Type: application/json
+
+{
+    "currentPassword": "Staff@123",
+    "newPassword": "Staff@1234"
+}

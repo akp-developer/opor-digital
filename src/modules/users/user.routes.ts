@@ -1,7 +1,7 @@
 // src/modules/users/user.routes.ts
 
 import { Router } from "express";
-import { param } from "express-validator"; // เพิ่ม import นี้
+import { param, body } from "express-validator"; // เพิ่ม body เข้าไป
 import userController from "./user.controller";
 import { AuthMiddleware } from "../auth/auth.middleware";
 import { checkRole } from "../../core/middleware/role.middleware";
@@ -53,6 +53,20 @@ router.put(
   userValidation.updatePassword,
   validateRequest,
   userController.updatePassword
+);
+
+// เพิ่ม route สำหรับ update status
+router.patch(
+  "/:id/status",
+  checkRole(["admin"]),
+  [
+    param("id").isMongoId().withMessage("User ID ไม่ถูกต้อง"),
+    body("status")
+      .isIn(["active", "inactive", "suspended"])
+      .withMessage("สถานะไม่ถูกต้อง"),
+  ],
+  validateRequest,
+  userController.updateStatus
 );
 
 export default router;

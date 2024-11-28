@@ -4,6 +4,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import { authRoutes } from "./modules/auth/auth.routes";
 import userRoutes from "./modules/users/user.routes";
+import tenantRoutes from "./modules/tenants/tenant.routes"; // เพิ่มบรรทัดนี้
 
 const app = express();
 
@@ -48,6 +49,7 @@ app.get("/", (_req, res) => {
 // API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/tenants", tenantRoutes); // เพิ่มบรรทัดนี้
 
 // Error handling middleware
 app.use(
