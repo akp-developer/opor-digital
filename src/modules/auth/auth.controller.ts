@@ -98,60 +98,78 @@ export class AuthController {
     try {
       const { email, password, tenantCode } = req.body;
 
+      console.log("Login attempt:", {
+        email,
+        tenantCode,
+        timestamp: new Date().toISOString(),
+      });
+
+      // ค้นหา tenant โดยไม่สนใจตัวพิมพ์เล็ก/ใหญ่
       const tenant = await TenantModel.findOne({
-        code: tenantCode,
+        code: { $regex: new RegExp(`^${tenantCode}$`, "i") },
         status: "active",
       });
 
       if (!tenant) {
+        console.log("Tenant not found or inactive:", tenantCode);
         return res.status(404).json({
           success: false,
-          message: "Invalid or inactive tenant",
+          message: "Tenant ไม่ถูกต้องหรือไม่ได้เปิดใช้งาน",
         });
       }
 
       const user = await UserModel.findOne({
-        email,
+        email: { $regex: new RegExp(`^${email}$`, "i") }, // ค้นหา email แบบไม่สนใจตัวพิมพ์เล็ก/ใหญ่
         tenantId: tenant._id,
         status: "active",
       });
 
       if (!user) {
+        console.log("User not found:", email);
         return res.status(401).json({
           success: false,
-          message: "Invalid credentials",
+          message: "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
         });
       }
 
       const isMatch = await user.comparePassword(password);
       if (!isMatch) {
+        console.log("Password mismatch for user:", email);
         return res.status(401).json({
           success: false,
-          message: "Invalid credentials",
+          message: "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
         });
       }
 
       const tokens = await AuthController.generateTokens(user);
 
-      res.json({
+      console.log("Login successful:", {
+        userId: user._id,
+        email: user.email,
+        timestamp: new Date().toISOString(),
+      });
+
+      return res.status(200).json({
         success: true,
         token: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
         user: {
           id: user._id,
           username: user.username,
           email: user.email,
           role: user.role,
+          firstName: user.firstName,
+          lastName: user.lastName,
         },
       });
     } catch (error) {
       console.error("Login error:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
-        message: "Error in login process",
+        message: "เกิดข้อผิดพลาดในการเข้าสู่ระบบ",
       });
     }
   }
-  
 
   static async getMe(req: Request & { user?: any }, res: Response) {
     try {
@@ -237,7 +255,7 @@ export class AuthController {
         tenantId: user.tenantId,
       },
       process.env.JWT_SECRET || "your-jwt-secret",
-      { expiresIn: "8h" }  // เปลี่ยนเป็น 8 ชั่วโมง
+      { expiresIn: "5m" } // เปลี่ยนเป็น 5 นาที
     );
 
     const refreshToken = jwt.sign(
@@ -245,9 +263,9 @@ export class AuthController {
         id: user._id,
       },
       process.env.JWT_REFRESH_SECRET || "your-refresh-jwt-secret",
-      { expiresIn: "7d" }  // refresh token อายุ 7 วัน
+      { expiresIn: "1d" } // refresh token อายุ 1 วัน
     );
 
     return { accessToken, refreshToken };
-}
+  }
 }

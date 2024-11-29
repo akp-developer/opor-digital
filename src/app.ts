@@ -4,7 +4,9 @@ import helmet from "helmet";
 import morgan from "morgan";
 import { authRoutes } from "./modules/auth/auth.routes";
 import userRoutes from "./modules/users/user.routes";
-import tenantRoutes from "./modules/tenants/tenant.routes"; // เพิ่มบรรทัดนี้
+import tenantRoutes from "./modules/tenants/tenant.routes";
+import calendarRoutes from "./modules/calendar/calendar.routes";
+import checkinRoutes from "./modules/calendar/checkin.routes";
 
 const app = express();
 
@@ -49,7 +51,9 @@ app.get("/", (_req, res) => {
 // API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/tenants", tenantRoutes); // เพิ่มบรรทัดนี้
+app.use("/api/tenants", tenantRoutes);
+app.use("/api/calendar", calendarRoutes);
+app.use("/api/calendar", checkinRoutes);
 
 // Error handling middleware
 app.use(

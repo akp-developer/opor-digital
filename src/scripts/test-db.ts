@@ -1,38 +1,43 @@
 // src/scripts/test-db.ts
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+import { UserModel } from "../models/user.model";
+import { TenantModel } from "../models/tenant.model";
 
 dotenv.config();
 
-const testConnection = async () => {
+const MONGODB_URI = `mongodb+srv://${process.env.MONGODB_USERNAME}:${process.env.MONGODB_PASSWORD}@${process.env.MONGODB_CLUSTER}/${process.env.MONGODB_MAIN_DB}?retryWrites=true&w=majority`;
+
+async function testDB() {
   try {
-    const mongoURI = `mongodb+srv://${process.env.MONGODB_USERNAME}:${process.env.MONGODB_PASSWORD}@${process.env.MONGODB_CLUSTER}/${process.env.MONGODB_MAIN_DB}`;
+    await mongoose.connect(MONGODB_URI);
+    console.log("เชื่อมต่อ MongoDB สำเร็จ");
 
-    console.log("Testing MongoDB connection...");
+    // ตรวจสอบ Tenant
+    const tenant = await TenantModel.findOne({ code: "DEMO001" });
+    console.log("ข้อมูล Tenant:", {
+      id: tenant?._id,
+      code: tenant?.code,
+      status: tenant?.status,
+    });
 
-    const conn = await mongoose.connect(mongoURI);
-
-    // List all collections
-    const collections = await conn.connection.db.listCollections().toArray();
-    console.log(
-      "Available collections:",
-      collections.map((c) => c.name)
-    );
-
-    // Test tenant collection
-    const tenants = await conn.connection.db
-      .collection("tenants")
-      .find({})
-      .toArray();
-    console.log("Tenants:", tenants);
-
-    await mongoose.disconnect();
-    console.log("Test completed successfully");
-    process.exit(0);
+    // ตรวจสอบ Users
+    const users = await UserModel.find().select("-password");
+    console.log("\nรายการผู้ใช้ทั้งหมด:");
+    users.forEach((user) => {
+      console.log({
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        tenantId: user.tenantId,
+      });
+    });
   } catch (error) {
-    console.error("Test failed:", error);
-    process.exit(1);
+    console.error("เกิดข้อผิดพลาด:", error);
+  } finally {
+    await mongoose.disconnect();
   }
-};
+}
 
-testConnection();
+testDB();

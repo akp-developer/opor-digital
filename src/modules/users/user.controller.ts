@@ -1,21 +1,8 @@
+// src/modules/users/user.controller.ts
 import { Request, Response } from "express";
 import mongoose from "mongoose";
-import { UserModel, IUser } from "../../models/user.model";
-
-// รวม interfaces
-interface RequestWithUser extends Request {
-  user?: {
-    id: string;
-    username: string;
-    role: string;
-    tenantId: string;
-  };
-}
-
-interface UserResponse extends Omit<IUser, "password" | "refreshToken"> {
-  password?: string;
-  refreshToken?: string;
-}
+import { IUser, RequestWithUser, UserResponse } from "../../types/user.types";
+import { UserModel } from "../../models/user.model";
 
 class UserController {
   // Get all users with pagination
@@ -135,8 +122,10 @@ class UserController {
       };
 
       const user = await UserModel.create(userData);
-      const userResponse: UserResponse = user.toObject();
-      const { password, refreshToken, ...responseData } = userResponse;
+      const userDoc = user.toObject();
+
+      // ตัดข้อมูลที่ไม่ต้องการออก
+      const { password, ...responseData } = userDoc;
 
       res.status(201).json({
         success: true,
@@ -150,6 +139,7 @@ class UserController {
       });
     }
   }
+
 
   // Update user
   async updateUser(req: RequestWithUser, res: Response): Promise<void> {

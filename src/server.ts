@@ -26,6 +26,10 @@ const startServer = async () => {
 
 startServer();
 
+import { CalendarNotification } from "./modules/calendar/calendar.notification";
+// เริ่มระบบแจ้งเตือนอัตโนมัติ
+CalendarNotification.setupReminders().catch(console.error);
+
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (err) => {
   console.error("Unhandled Promise Rejection:", err);

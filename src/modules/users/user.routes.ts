@@ -1,72 +1,64 @@
 // src/modules/users/user.routes.ts
-
-import { Router } from "express";
-import { param, body } from "express-validator"; // เพิ่ม body เข้าไป
-import userController from "./user.controller";
-import { AuthMiddleware } from "../auth/auth.middleware";
-import { checkRole } from "../../core/middleware/role.middleware";
-import { validateRequest } from "../../core/middleware/validation.middleware";
-import { userValidation } from "./user.validation";
+import { Router } from 'express';
+import { body } from 'express-validator';
+import UserController from './user.controller';
+import { AuthMiddleware } from '../auth/auth.middleware';
+import { userValidation } from './user.validation';
+import { validateRequest } from '../../core/middleware/validation.middleware';
 
 const router = Router();
+
+// Debug middleware
+router.use((req, res, next) => {
+  console.log(`User Route: ${req.method} ${req.url}`);
+  if (req.body && Object.keys(req.body).length) {
+    console.log('Body:', req.body);
+  }
+  next();
+});
 
 // Protect all routes
 router.use(AuthMiddleware.protect);
 
-// Routes with validation
-router.get("/", checkRole(["admin"]), userController.getUsers);
+// Admin only routes
+router.use(AuthMiddleware.roles('admin'));
 
-router.get(
-  "/:id",
-  checkRole(["admin", "staff"]),
-  param("id").isMongoId().withMessage("User ID ไม่ถูกต้อง"),
-  validateRequest,
-  userController.getUser
-);
+// User management routes
+router.route('/')
+  .get(UserController.getUsers.bind(UserController))
+  .post(
+    userValidation.createUser,
+    validateRequest,
+    UserController.createUser.bind(UserController)
+  );
 
-router.post(
-  "/",
-  checkRole(["admin"]),
-  userValidation.createUser,
-  validateRequest,
-  userController.createUser
-);
+router.route('/:id')
+  .get(UserController.getUser.bind(UserController))
+  .put(
+    userValidation.updateUser,
+    validateRequest,
+    UserController.updateUser.bind(UserController)
+  )
+  .delete(UserController.deleteUser.bind(UserController));
 
-router.put(
-  "/:id",
-  checkRole(["admin"]),
-  userValidation.updateUser,
-  validateRequest,
-  userController.updateUser
-);
-
-router.delete(
-  "/:id",
-  checkRole(["admin"]),
-  param("id").isMongoId().withMessage("User ID ไม่ถูกต้อง"),
-  validateRequest,
-  userController.deleteUser
-);
-
-router.put(
-  "/:id/password",
-  userValidation.updatePassword,
-  validateRequest,
-  userController.updatePassword
-);
-
-// เพิ่ม route สำหรับ update status
-router.patch(
-  "/:id/status",
-  checkRole(["admin"]),
+// Update user status
+router.patch('/:id/status',
   [
-    param("id").isMongoId().withMessage("User ID ไม่ถูกต้อง"),
-    body("status")
-      .isIn(["active", "inactive", "suspended"])
-      .withMessage("สถานะไม่ถูกต้อง"),
+    ...userValidation.updateUser.filter(v => 
+      v.toString().includes('id')),
+    body('status')
+      .isIn(['active', 'inactive', 'suspended'])
+      .withMessage('สถานะไม่ถูกต้อง')
   ],
   validateRequest,
-  userController.updateStatus
+  UserController.updateStatus.bind(UserController)
+);
+
+// Update password
+router.put('/:id/password',
+  userValidation.updatePassword,
+  validateRequest,
+  UserController.updatePassword.bind(UserController)
 );
 
 export default router;

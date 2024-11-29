@@ -1,33 +1,45 @@
 @baseUrl = http://localhost:5000/api
-@token = empty_token
 
-#@baseUrl = http://localhost:5000/api
-
-### Login
-POST http://localhost:5000/api/auth/login
+### 1. Login เพื่อรับ token ###
+# @name adminLogin
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
     "email": "admin@test.com",
-    "password": "Test12345!",
+    "password": "Test123!",
     "tenantCode": "demo001"
 }
 
-### Update user status
-PATCH {{baseUrl}}/users/67486e71ef7c986d25327d7c/status
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3NDg0NTdhZWY3Yzk4NmQyNTMyN2NlMyIsInVzZXJuYW1lIjoidGVzdGFkbWluIiwicm9sZSI6ImFkbWluIiwidGVuYW50SWQiOiI2NzQ3ZWUzYzk2NzNlZDUxZGMxN2UyOWUiLCJpYXQiOjE3MzI4MDEzNDAsImV4cCI6MTczMjgzMDE0MH0.iZwoknJcWCVGVtBHvcmMvgTaGBgrV5e9t568-DXLtwE
+### 2. ทดสอบ MongoDB ID ที่ไม่มีอยู่จริง ###
+GET {{baseUrl}}/users/507f1f77bcf86cd799439011
+Authorization: Bearer {{adminLogin.response.body.token}}
+
+### 3. ทดสอบส่ง request body ไม่ครบ ###
+POST {{baseUrl}}/users
+Authorization: Bearer {{adminLogin.response.body.token}}
 Content-Type: application/json
 
 {
-    "status": "inactive"
+    "email": "incomplete@test.com",
+    "username": "incompleteuser"
 }
 
-### Update password
-PUT {{baseUrl}}/users/67486e71ef7c986d25327d7c/password
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3NDg0NTdhZWY3Yzk4NmQyNTMyN2NlMyIsInVzZXJuYW1lIjoidGVzdGFkbWluIiwicm9sZSI6ImFkbWluIiwidGVuYW50SWQiOiI2NzQ3ZWUzYzk2NzNlZDUxZGMxN2UyOWUiLCJpYXQiOjE3MzI4MDEzNDAsImV4cCI6MTczMjgzMDE0MH0.iZwoknJcWCVGVtBHvcmMvgTaGBgrV5e9t568-DXLtwE
+### 4. ทดสอบส่ง request body ผิดรูปแบบ ###
+POST {{baseUrl}}/users
+Authorization: Bearer {{adminLogin.response.body.token}}
 Content-Type: application/json
 
 {
-    "currentPassword": "Staff@123",
-    "newPassword": "Staff@1234"
+    "email": "test@example.com",
+    "password": "Test123!",
+    "username": "test",
+    "role": "invalid_role",
+    "firstName": "Test",
+    "lastName": "User",
+    "tenantCode": "demo001"
 }
+
+### รอ token หมดอายุ (5 นาที) แล้วทดสอบ
+GET {{baseUrl}}/users
+Authorization: Bearer {{adminLogin.response.body.token}}
